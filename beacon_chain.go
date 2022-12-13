@@ -27,6 +27,7 @@ func NewEthereumBeaconChain(genesis time.Time, durationPerSlot time.Duration, sl
 
 			time.Sleep(slot.TimeWindow().End().Sub(time.Now()))
 
+			slot = e.slots.Current()
 			for _, callback := range e.slotChangedCallbacks {
 				go callback(slot)
 			}
@@ -39,6 +40,7 @@ func NewEthereumBeaconChain(genesis time.Time, durationPerSlot time.Duration, sl
 
 			time.Sleep(epoch.TimeWindow().End().Sub(time.Now()))
 
+			epoch = e.epochs.Current()
 			for _, callback := range e.epochChangedCallbacks {
 				go callback(epoch)
 			}
