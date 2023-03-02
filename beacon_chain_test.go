@@ -20,7 +20,7 @@ func TestBeaconChainEventCallbacks(t *testing.T) {
 			slotCallbacks++
 		})
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(5100 * time.Millisecond)
 
 		if epochCallbacks != 2 {
 			t.Errorf("incorrect number of epoch callbacks: got %v, want %v", epochCallbacks, 2)
@@ -30,4 +30,6 @@ func TestBeaconChainEventCallbacks(t *testing.T) {
 			t.Errorf("incorrect number of slot callbacks: got %v, want %v", slotCallbacks, 5)
 		}
 	})
+
+	beacon.Stop()
 }

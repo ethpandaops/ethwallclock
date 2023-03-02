@@ -10,6 +10,9 @@ type EthereumBeaconChain struct {
 
 	epochChangedCallbacks []func(current Epoch)
 	slotChangedCallbacks  []func(current Slot)
+
+	slotCh  chan struct{}
+	epochCh chan struct{}
 }
 
 func NewEthereumBeaconChain(genesis time.Time, durationPerSlot time.Duration, slotsPerEpoch uint64) *EthereumBeaconChain {
@@ -19,30 +22,43 @@ func NewEthereumBeaconChain(genesis time.Time, durationPerSlot time.Duration, sl
 
 		epochChangedCallbacks: []func(current Epoch){},
 		slotChangedCallbacks:  []func(current Slot){},
+
+		slotCh:  make(chan struct{}),
+		epochCh: make(chan struct{}),
 	}
 
 	go func() {
 		for {
-			slot := e.slots.Current()
+			select {
+			case <-e.slotCh:
+				return
+			default:
+				slot := e.slots.Current()
 
-			time.Sleep(slot.TimeWindow().End().Sub(time.Now()))
+				time.Sleep(time.Until(slot.TimeWindow().End()))
 
-			slot = e.slots.Current()
-			for _, callback := range e.slotChangedCallbacks {
-				go callback(slot)
+				slot = e.slots.Current()
+				for _, callback := range e.slotChangedCallbacks {
+					go callback(slot)
+				}
 			}
 		}
 	}()
 
 	go func() {
 		for {
-			epoch := e.epochs.Current()
+			select {
+			case <-e.epochCh:
+				return
+			default:
+				epoch := e.epochs.Current()
 
-			time.Sleep(epoch.TimeWindow().End().Sub(time.Now()))
+				time.Sleep(time.Until(epoch.TimeWindow().End()))
 
-			epoch = e.epochs.Current()
-			for _, callback := range e.epochChangedCallbacks {
-				go callback(epoch)
+				epoch = e.epochs.Current()
+				for _, callback := range e.epochChangedCallbacks {
+					go callback(epoch)
+				}
 			}
 		}
 	}()
@@ -78,4 +94,11 @@ func (e *EthereumBeaconChain) OnEpochChanged(callback func(current Epoch)) {
 
 func (e *EthereumBeaconChain) OnSlotChanged(callback func(current Slot)) {
 	e.slotChangedCallbacks = append(e.slotChangedCallbacks, callback)
+}
+
+func (e *EthereumBeaconChain) Stop() {
+	e.slotCh <- struct{}{}
+	e.epochCh <- struct{}{}
+	close(e.slotCh)
+	close(e.epochCh)
 }
