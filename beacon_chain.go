@@ -1,6 +1,7 @@
 package ethwallclock
 
 import (
+	"sync"
 	"time"
 )
 
@@ -8,6 +9,7 @@ type EthereumBeaconChain struct {
 	slots  *DefaultSlotCreator
 	epochs *DefaultEpochCreator
 
+	mu                    sync.RWMutex // protects callback slices
 	epochChangedCallbacks []func(current Epoch)
 	slotChangedCallbacks  []func(current Slot)
 
@@ -38,7 +40,15 @@ func NewEthereumBeaconChain(genesis time.Time, durationPerSlot time.Duration, sl
 				time.Sleep(time.Until(slot.TimeWindow().End()))
 
 				slot = e.slots.Current()
-				for _, callback := range e.slotChangedCallbacks {
+
+				// Take a read lock and copy the callbacks.
+				e.mu.RLock()
+				callbacks := make([]func(current Slot), len(e.slotChangedCallbacks))
+				copy(callbacks, e.slotChangedCallbacks)
+				e.mu.RUnlock()
+
+				// Execute callbacks from our copy.
+				for _, callback := range callbacks {
 					go callback(slot)
 				}
 			}
@@ -56,7 +66,15 @@ func NewEthereumBeaconChain(genesis time.Time, durationPerSlot time.Duration, sl
 				time.Sleep(time.Until(epoch.TimeWindow().End()))
 
 				epoch = e.epochs.Current()
-				for _, callback := range e.epochChangedCallbacks {
+
+				// Take a read lock and copy the callbacks.
+				e.mu.RLock()
+				callbacks := make([]func(current Epoch), len(e.epochChangedCallbacks))
+				copy(callbacks, e.epochChangedCallbacks)
+				e.mu.RUnlock()
+
+				// Execute callbacks from our copy.
+				for _, callback := range callbacks {
 					go callback(epoch)
 				}
 			}
@@ -89,11 +107,15 @@ func (e *EthereumBeaconChain) Epochs() *DefaultEpochCreator {
 }
 
 func (e *EthereumBeaconChain) OnEpochChanged(callback func(current Epoch)) {
+	e.mu.Lock()
 	e.epochChangedCallbacks = append(e.epochChangedCallbacks, callback)
+	e.mu.Unlock()
 }
 
 func (e *EthereumBeaconChain) OnSlotChanged(callback func(current Slot)) {
+	e.mu.Lock()
 	e.slotChangedCallbacks = append(e.slotChangedCallbacks, callback)
+	e.mu.Unlock()
 }
 
 func (e *EthereumBeaconChain) Stop() {
