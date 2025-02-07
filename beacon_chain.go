@@ -9,7 +9,7 @@ type EthereumBeaconChain struct {
 	slots  *DefaultSlotCreator
 	epochs *DefaultEpochCreator
 
-	mu                    sync.RWMutex // protects callback slices
+	mu                    sync.RWMutex
 	epochChangedCallbacks []func(current Epoch)
 	slotChangedCallbacks  []func(current Slot)
 
