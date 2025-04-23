@@ -15,6 +15,8 @@ type EthereumBeaconChain struct {
 
 	slotCh  chan struct{}
 	epochCh chan struct{}
+	stopCh  chan struct{}
+	stopped bool
 }
 
 func NewEthereumBeaconChain(genesis time.Time, durationPerSlot time.Duration, slotsPerEpoch uint64) *EthereumBeaconChain {
@@ -27,12 +29,16 @@ func NewEthereumBeaconChain(genesis time.Time, durationPerSlot time.Duration, sl
 
 		slotCh:  make(chan struct{}),
 		epochCh: make(chan struct{}),
+		stopCh:  make(chan struct{}),
+		stopped: false,
 	}
 
 	go func() {
 		for {
 			select {
 			case <-e.slotCh:
+				return
+			case <-e.stopCh:
 				return
 			default:
 				slot := e.slots.Current()
@@ -43,6 +49,13 @@ func NewEthereumBeaconChain(genesis time.Time, durationPerSlot time.Duration, sl
 
 				// Take a read lock and copy the callbacks.
 				e.mu.RLock()
+
+				if e.stopped {
+					e.mu.RUnlock()
+
+					return
+				}
+
 				callbacks := make([]func(current Slot), len(e.slotChangedCallbacks))
 				copy(callbacks, e.slotChangedCallbacks)
 				e.mu.RUnlock()
@@ -60,6 +73,8 @@ func NewEthereumBeaconChain(genesis time.Time, durationPerSlot time.Duration, sl
 			select {
 			case <-e.epochCh:
 				return
+			case <-e.stopCh:
+				return
 			default:
 				epoch := e.epochs.Current()
 
@@ -69,6 +84,13 @@ func NewEthereumBeaconChain(genesis time.Time, durationPerSlot time.Duration, sl
 
 				// Take a read lock and copy the callbacks.
 				e.mu.RLock()
+
+				if e.stopped {
+					e.mu.RUnlock()
+
+					return
+				}
+
 				callbacks := make([]func(current Epoch), len(e.epochChangedCallbacks))
 				copy(callbacks, e.epochChangedCallbacks)
 				e.mu.RUnlock()
@@ -108,19 +130,56 @@ func (e *EthereumBeaconChain) Epochs() *DefaultEpochCreator {
 
 func (e *EthereumBeaconChain) OnEpochChanged(callback func(current Epoch)) {
 	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.stopped {
+		return
+	}
+
 	e.epochChangedCallbacks = append(e.epochChangedCallbacks, callback)
-	e.mu.Unlock()
 }
 
 func (e *EthereumBeaconChain) OnSlotChanged(callback func(current Slot)) {
 	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.stopped {
+		return
+	}
+
 	e.slotChangedCallbacks = append(e.slotChangedCallbacks, callback)
-	e.mu.Unlock()
 }
 
 func (e *EthereumBeaconChain) Stop() {
-	e.slotCh <- struct{}{}
-	e.epochCh <- struct{}{}
+	e.mu.Lock()
+
+	if e.stopped {
+		e.mu.Unlock()
+
+		return
+	}
+
+	e.stopped = true
+	e.mu.Unlock()
+
+	close(e.stopCh)
+
+	// Send a signal to the other channels, but don't close them yet
+	// to avoid "send on closed channel" panics from any other goroutines.
+	select {
+	case e.slotCh <- struct{}{}:
+	default:
+	}
+
+	select {
+	case e.epochCh <- struct{}{}:
+	default:
+	}
+
+	// Small delay to allow goroutines to exit
+	time.Sleep(100 * time.Millisecond)
+
+	// Now safe to close
 	close(e.slotCh)
 	close(e.epochCh)
 }
