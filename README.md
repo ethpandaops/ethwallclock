@@ -1,5 +1,9 @@
 # EthWallclock
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/ethpandaops/ethwallclock)](https://goreportcard.com/report/github.com/ethpandaops/ethwallclock)
+[![Release](https://img.shields.io/github/v/release/ethpandaops/ethwallclock)](https://github.com/ethpandaops/ethwallclock/releases)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+
 An Ethereum Wallclock Go package
 
 ## Installation
