@@ -20,9 +20,35 @@ type EthereumBeaconChain struct {
 }
 
 func NewEthereumBeaconChain(genesis time.Time, durationPerSlot time.Duration, slotsPerEpoch uint64) *EthereumBeaconChain {
+	return newEthereumBeaconChain(
+		NewDefaultSlotCreator(genesis, durationPerSlot),
+		NewDefaultEpochCreator(genesis, durationPerSlot, slotsPerEpoch),
+	)
+}
+
+// NewEthereumBeaconChainWithSchedule creates a wall clock for a chain whose
+// slot duration changes over time (EIP-8198 SLOT_DURATION_SCHEDULE: a list
+// of {epoch, slot duration} entries starting at epoch 0). Slot and epoch
+// boundaries, and the OnSlotChanged/OnEpochChanged callbacks, follow the
+// schedule.
+func NewEthereumBeaconChainWithSchedule(genesis time.Time, schedule []SlotDuration, slotsPerEpoch uint64) (*EthereumBeaconChain, error) {
+	slots, err := NewDefaultSlotCreatorWithSchedule(genesis, schedule, slotsPerEpoch)
+	if err != nil {
+		return nil, err
+	}
+
+	epochs, err := NewDefaultEpochCreatorWithSchedule(genesis, schedule, slotsPerEpoch)
+	if err != nil {
+		return nil, err
+	}
+
+	return newEthereumBeaconChain(slots, epochs), nil
+}
+
+func newEthereumBeaconChain(slots *DefaultSlotCreator, epochs *DefaultEpochCreator) *EthereumBeaconChain {
 	e := &EthereumBeaconChain{
-		slots:  NewDefaultSlotCreator(genesis, durationPerSlot),
-		epochs: NewDefaultEpochCreator(genesis, durationPerSlot, slotsPerEpoch),
+		slots:  slots,
+		epochs: epochs,
 
 		epochChangedCallbacks: []func(current Epoch){},
 		slotChangedCallbacks:  []func(current Slot){},
