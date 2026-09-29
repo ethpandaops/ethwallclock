@@ -38,3 +38,16 @@ func main() {
   fmt.Println("Epoch: ", epoch)
 }
 ```
+
+### Variable slot durations (EIP-8198)
+
+Chains using a slot duration schedule (EIP-8198 `SLOT_DURATION_SCHEDULE`) can
+pass the schedule instead of a single duration. Slot/epoch numbers, time
+windows and the `OnSlotChanged`/`OnEpochChanged` callbacks follow it.
+
+```go
+wallclock, err := ethwallclock.NewEthereumBeaconChainWithSchedule(genesisTime, []ethwallclock.SlotDuration{
+  {Epoch: 0, Duration: 12 * time.Second},
+  {Epoch: 100000, Duration: 11 * time.Second},
+}, 32)
+```
