@@ -19,10 +19,10 @@ type EthereumBeaconChain struct {
 	stopped bool
 }
 
-func NewEthereumBeaconChain(genesis time.Time, durationPerSlot time.Duration, slotsPerEpoch uint64) *EthereumBeaconChain {
+func NewEthereumBeaconChain(genesis time.Time, durationPerSlot time.Duration, slotsPerEpoch uint64, opts ...Option) *EthereumBeaconChain {
 	e := &EthereumBeaconChain{
-		slots:  NewDefaultSlotCreator(genesis, durationPerSlot),
-		epochs: NewDefaultEpochCreator(genesis, durationPerSlot, slotsPerEpoch),
+		slots:  newSlotCreator(genesis, durationPerSlot, slotsPerEpoch, opts),
+		epochs: NewDefaultEpochCreator(genesis, durationPerSlot, slotsPerEpoch, opts...),
 
 		epochChangedCallbacks: []func(current Epoch){},
 		slotChangedCallbacks:  []func(current Slot){},

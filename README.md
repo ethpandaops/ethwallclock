@@ -38,3 +38,15 @@ func main() {
   fmt.Println("Epoch: ", epoch)
 }
 ```
+
+### Slot duration change at Heze
+
+Heze changes the slot duration from `SLOT_DURATION_MS` to `SLOT_DURATION_MS_HEZE`
+at `HEZE_FORK_EPOCH`. Pass both from the beacon spec; slot/epoch numbers, time
+windows and the `OnSlotChanged`/`OnEpochChanged` callbacks follow the change.
+
+```go
+wallclock := ethwallclock.NewEthereumBeaconChain(genesisTime, 12*time.Second, 32,
+  ethwallclock.WithHezeSlotDuration(hezeForkEpoch, 9*time.Second),
+)
+```
