@@ -53,7 +53,7 @@ func TestHezeSlotDuration(t *testing.T) {
 func TestHezeSlotDurationUnscheduled(t *testing.T) {
 	genesis := time.Unix(1_700_000_000, 0)
 
-	for _, opt := range []Option{WithHezeSlotDuration(math.MaxUint64, 9*time.Second), WithHezeSlotDuration(5, 0)} {
+	for _, opt := range []Option{WithHezeSlotDuration(math.MaxUint64, 9*time.Second), WithHezeSlotDuration(5, 0), WithHezeSlotDuration(5, 12*time.Second)} {
 		chain := NewEthereumBeaconChain(genesis, 12*time.Second, 32, opt)
 
 		if got := slotStart(chain.Slots().FromNumber(1000)); !got.Equal(genesis.Add(1000 * 12 * time.Second)) {
