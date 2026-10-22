@@ -4,24 +4,24 @@ import (
 	"time"
 )
 
-func NewDefaultEpochCreator(genesis time.Time, durationPerSlot time.Duration, slotsPerEpoch uint64) *DefaultEpochCreator {
+func NewDefaultEpochCreator(genesis time.Time, durationPerSlot time.Duration, slotsPerEpoch uint64, opts ...Option) *DefaultEpochCreator {
 	return &DefaultEpochCreator{
-		genesis:         genesis,
-		durationPerSlot: durationPerSlot,
-		slotsPerEpoch:   slotsPerEpoch,
+		genesis:       genesis,
+		timing:        newSlotTiming(durationPerSlot, slotsPerEpoch, opts),
+		slotsPerEpoch: slotsPerEpoch,
 	}
 }
 
 type DefaultEpochCreator struct {
-	genesis         time.Time
-	durationPerSlot time.Duration
-	slotsPerEpoch   uint64
+	genesis       time.Time
+	timing        slotTiming
+	slotsPerEpoch uint64
 }
 
 func (e *DefaultEpochCreator) FromNumber(number uint64) Epoch {
 	return NewEpoch(number,
-		e.genesis.Add(time.Duration(number*e.slotsPerEpoch)*e.durationPerSlot),
-		e.genesis.Add(time.Duration((number+1)*e.slotsPerEpoch)*e.durationPerSlot),
+		e.genesis.Add(e.timing.slotOffset(number*e.slotsPerEpoch)),
+		e.genesis.Add(e.timing.slotOffset((number+1)*e.slotsPerEpoch)),
 	)
 }
 
@@ -30,8 +30,12 @@ func (e *DefaultEpochCreator) Current() Epoch {
 }
 
 func (e *DefaultEpochCreator) FromTime(t time.Time) Epoch {
-	number := uint64(t.Sub(e.genesis) / (e.durationPerSlot * time.Duration(e.slotsPerEpoch)))
-	return e.FromNumber(number)
+	offset := t.Sub(e.genesis)
+	if offset < 0 {
+		return e.FromNumber(uint64(offset / (e.timing.durationPerSlot * time.Duration(e.slotsPerEpoch))))
+	}
+
+	return e.FromNumber(e.timing.slotAt(offset) / e.slotsPerEpoch)
 }
 
 func (e *DefaultEpochCreator) FromSlot(slot uint64) Epoch {
